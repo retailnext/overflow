@@ -5,7 +5,7 @@
 //go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris && !windows
 // +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!solaris,!windows
 
-package netutil
+package overflow
 
 func maxOpenFiles() int {
 	return defaultMaxOpenFiles
