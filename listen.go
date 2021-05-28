@@ -16,7 +16,6 @@ func LimitListener(l net.Listener, n int, options LimitListenerOptions) net.List
 	return &limitListener{
 		Listener: l,
 		sem:      make(chan struct{}, n),
-		done:     make(chan struct{}),
 		options:  options,
 	}
 }
@@ -52,10 +51,8 @@ type Gauge interface {
 
 type limitListener struct {
 	net.Listener
-	sem       chan struct{}
-	closeOnce sync.Once     // ensures the done chan is only closed once
-	done      chan struct{} // no values sent; closed when Close is called
-	options   LimitListenerOptions
+	sem     chan struct{}
+	options LimitListenerOptions
 }
 
 func (l *limitListener) Accept() (net.Conn, error) {
@@ -66,9 +63,6 @@ func (l *limitListener) Accept() (net.Conn, error) {
 		}
 
 		select {
-		case <-l.done:
-			// Assume that calling Accept() again won't block, and will return a proper is-closed error.
-			return l.Listener.Accept()
 		case l.sem <- struct{}{}:
 			return l.acquired(c)
 		default:
@@ -104,12 +98,6 @@ func (l *limitListener) reject(c net.Conn) {
 	if l.options.RejectedConnections != nil {
 		l.options.RejectedConnections.Inc()
 	}
-}
-
-func (l *limitListener) Close() error {
-	err := l.Listener.Close()
-	l.closeOnce.Do(func() { close(l.done) })
-	return err
 }
 
 type limitListenerConn struct {
