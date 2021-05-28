@@ -1,4 +1,5 @@
 // Copyright 2021 RetailNext, Inc. All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,6 +11,8 @@ import (
 	"testing"
 	"time"
 )
+
+const defaultMaxOpenFiles = 256
 
 type testScenario struct {
 	clientOptions testClientOptions
@@ -143,9 +146,18 @@ func (s testScenario) run() {
 }
 
 func TestLimitListener(t *testing.T) {
+	// Ensure some overhead for fds unrelated to the test.
+	effectiveMaxOpenFiles := maxOpenFiles() - 32
+	if effectiveMaxOpenFiles < 128 {
+		panic("rlimit too low for test to be useful")
+	}
+	concurrentAttempts := effectiveMaxOpenFiles / 2
 	// We don't want to hit accept queue limits
-	concurrentAttempts := 128
-	serverLimit := concurrentAttempts * 3 / 5
+	maxConcurrentAttempts := 128
+	if concurrentAttempts > maxConcurrentAttempts {
+		concurrentAttempts = maxConcurrentAttempts
+	}
+	serverLimit := (concurrentAttempts * 3) / 5
 
 	defaults := testScenario{
 		clientOptions: testClientOptions{
